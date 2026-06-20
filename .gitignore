@@ -1,0 +1,39 @@
+# Node.js / Frontend
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Python / Backend
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.env.local
+.env.*.local
+
+# Hardhat / Blockchain
+cache/
+artifacts/
+typechain/
+typechain-types/
+coverage/
+coverage.json
+
+# IDE / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Misc
+*.tmp
+*.temp

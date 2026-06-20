@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-accent: #22d3ee;
+  --color-accent-dim: rgba(34, 211, 238, 0.3);
+  --color-accent-border: rgba(34, 211, 238, 0.3);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #020617;
+  color: #e2e8f0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #22d3ee;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #67e8f9;
+}
+
+/* Glow effect utilities */
+@layer utilities {
+  .border-cyber {
+    border-color: rgba(34, 211, 238, 0.3);
+  }
+
+  .text-cyber {
+    color: #22d3ee;
+  }
+
+  .bg-cyber {
+    background-color: rgba(34, 211, 238, 0.1);
+  }
+
+  .glow-border {
+    box-shadow: 0 0 10px rgba(34, 211, 238, 0.2), inset 0 0 10px rgba(34, 211, 238, 0.05);
+  }
+
+  .glow-text {
+    text-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+  }
+}
+
+/* Cyberpunk card base */
+.cyber-card {
+  @apply bg-slate-900 border border-cyan-500/30 rounded-lg;
+  box-shadow: 0 0 15px rgba(34, 211, 238, 0.1), inset 0 0 30px rgba(34, 211, 238, 0.02);
+}
+
+/* Cyberpunk input */
+.cyber-input {
+  @apply bg-slate-900 border border-cyan-500/30 rounded-lg px-4 py-3 text-slate-200 placeholder-slate-500;
+  @apply focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-500/30;
+  @apply transition-all duration-200;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.05);
+}
+
+.cyber-input:focus {
+  box-shadow: 0 0 15px rgba(34, 211, 238, 0.15), inset 0 0 10px rgba(34, 211, 238, 0.03);
+}
+
+/* Cyberpunk button */
+.cyber-btn {
+  @apply px-6 py-2.5 rounded-lg font-semibold text-sm tracking-wide transition-all duration-200;
+  @apply border border-cyan-500/30;
+  @apply hover:border-cyan-400 hover:shadow-cyan-glow;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.1) 0%, rgba(6, 182, 212, 0.05) 100%);
+  color: #22d3ee;
+}
+
+.cyber-btn:hover {
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.2) 0%, rgba(6, 182, 212, 0.1) 100%);
+}
+
+.cyber-btn:active {
+  transform: scale(0.98);
+}
+
+.cyber-btn:disabled {
+  @apply opacity-50 cursor-not-allowed;
+  box-shadow: none;
+}
+
+/* Primary action button */
+.cyber-btn-primary {
+  @apply cyber-btn bg-gradient-to-r from-cyan-500/20 to-cyan-600/10;
+}
+
+/* Status pill base */
+.status-pill {
+  @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border;
+}
+
+/* Scan line overlay effect (subtle) */
+.scan-lines::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
