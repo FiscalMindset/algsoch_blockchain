@@ -130,6 +130,9 @@ Before you begin, make sure you have the following installed on your machine:
 
 ## 🚀 Step-by-Step Setup
 
+> [!TIP]
+> **Don't want to do this manually?** Just run `./start.sh` (see [Quick Start](#-quick-start-one-command) above) and it automates every single step below. The following manual guide is provided for transparency / education.
+
 Follow these steps **in order**. Do not skip any step.
 
 ### Step 1: Navigate to the Repository
@@ -387,6 +390,10 @@ python worker_agent.py
 
 ## 🛠️ THE ABSOLUTE BEGINNER'S GUIDE TO SETTING UP METAMASK FOR THIS REPO
 
+> [!TIP]
+> **Shortcut:** If you use the **Dev Wallet** (built into the frontend), you don't need MetaMask at all. Click the purple **Dev Wallet** button in the Navbar and pick any Hardhat account instantly. If you still want MetaMask, follow the steps below.
+
+
 > [!IMPORTANT]
 > If you've never used MetaMask or never connected to a local blockchain, this section is for you. Follow every step exactly.
 
@@ -514,6 +521,9 @@ Now we import both accounts into MetaMask so we can use them.
 ---
 
 ## 🎯 How to Run the Full Demo
+
+> [!NOTE]
+> **One-command shortcut:** `./start.sh --workers=3` starts Hardhat + deploys contract + starts workers + starts frontend + launches manager prompt, all in one terminal. The instructions below show the manual process only for reference.
 
 Once all services are running, here's the complete workflow:
 
