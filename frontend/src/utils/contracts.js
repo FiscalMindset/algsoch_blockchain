@@ -144,7 +144,9 @@ export const ABI = [
  * @returns {Promise<ethers.Contract>}
  */
 export async function getContract(providerOrSigner) {
-  const network = await providerOrSigner.getNetwork()
+  // Signers (Wallet, JsonRpcSigner) have .provider; pure Providers do not.
+  const provider = providerOrSigner.provider || providerOrSigner
+  const network = await provider.getNetwork()
   const chainId = Number(network.chainId)
   const address = getContractAddress(chainId)
   return new ethers.Contract(address, ABI, providerOrSigner)
