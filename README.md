@@ -71,68 +71,188 @@
 
 ---
 
+## 🚀 Quick Start (ONE Command)
+
+> [!NOTE]
+> **New:** Everything now starts automatically with a single command. You don't need to open 5 separate terminals anymore.
+
+```bash
+git clone https://github.com/FiscalMindset/algsoch_blockchain.git
+cd algsoch_blockchain/agent-swarm-escrow
+./start.sh
+```
+
+That's it. The script does **everything** automatically:
+1. ✅ Checks Node.js 18+ and Python 3.10+
+2. ✅ Installs all dependencies (blockchain + backend + frontend)
+3. ✅ Starts Hardhat node and waits for it
+4. ✅ Deploys the smart contract
+5. ✅ Configures backend `.env` with the deployed address
+6. ✅ Starts **Worker Swarm** (default 3 agents) in background
+7. ✅ Starts **Frontend** at http://localhost:5173
+8. ✅ Launches **Manager Agent** in foreground — **you type your goal here**
+
+**Options:**
+```bash
+./start.sh                       # 3 workers, prompts for goal
+./start.sh --workers=5           # start 5 workers
+./start.sh --goal="Build a weather engine"   # auto-submit goal
+```
+
+**To stop:** Press `Ctrl+C` once — all background services shut down gracefully.
+
+**View logs:**
+```bash
+# All logs live in logs/ directory
+cat logs/hardhat.log     # Hardhat node
+cat logs/workers.log     # Worker swarm output
+cat logs/vite.log        # Frontend server
+cat logs/deploy.log      # Contract deployment
+```
+
+> [!IMPORTANT]
+> The frontend is automatically configured with the correct deployed contract address. No manual copy-paste needed.
+
+---
+
 ## 🏗️ Architecture Overview
 
+### Interactive Flow Diagram
+
+```mermaid
+flowchart TD
+    subgraph Human["👤 Human Layer"]
+        H[Submit complex goal prompt\n"Build a weather engine"]
+    end
+
+    subgraph Manager["🧠 Manager Agent (Python)"]
+        M1[Decompose into sub-tasks]
+        M2[postTask with ETH bounty]
+        M3[Monitor TaskSubmitted events]
+        M4[approveAndPay → release escrow]
+    end
+
+    subgraph Contract["⛓️ Smart Contract (Solidity)"]
+        C1[postTask — lock ETH]
+        C2[claimTask — assign worker]
+        C3[submitResult — store result]
+        C4[approveAndPay — release ETH]
+    end
+
+    subgraph Worker["⚡ Worker Swarm (Python × N)"]
+        W1[Listen for TaskPosted event]
+        W2[claimTask]
+        W3[AI Thinking 3s]
+        W4[submitResult]
+        W5[Receive ETH payout]
+    end
+
+    subgraph Frontend["🎛️ Dashboard (React + Ethers v6)"]
+        F1[Live task grid]
+        F2[MetaMask / Dev Wallet]
+        F3[Transaction Activity Log]
+        F4[Swarm Visualizer]
+    end
+
+    H --> M1
+    M1 --> M2
+    M2 --> C1
+    C1 --> |emit TaskPosted| W1
+    W1 --> W2
+    W2 --> C2
+    W3 --> W4
+    W4 --> C3
+    C3 --> |emit TaskSubmitted| M3
+    M3 --> M4
+    M4 --> C4
+    C4 --> W5
+    C1 --> |live events| F1
+    F2 --> |submit transactions| M2
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              HUMAN LAYER                                     │
-│                                                                              │
-│    You (the human) submits a complex goal prompt                            │
-│    Example: "Research three L2 scaling solutions and summarize them"        │
-│                                       │                                       │
-│                                       ▼                                       │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                          MANAGER AGENT LAYER                                 │
-│                                                                              │
-│    Python Manager Agent                                                     │
-│    ┌─────────────────────────────────────────────────────────────────┐     │
-│    │  • Receives goal from human                                     │     │
-│    │  • Decomposes goal into 2 atomic sub-tasks                      │     │
-│    │  • Posts each sub-task to the blockchain (with ETH escrow)      │     │
-│    │  • Monitors TaskSubmitted events                                │     │
-│    │  • Calls approveAndPay() to release funds to workers            │     │
-│    └─────────────────────────────────────────────────────────────────┘     │
-│                                       │                                       │
-│                    ┌──────────────────┴──────────────────┐                   │
-│                    │         HARDHAT EVM ESCROW          │                   │
-│                    │  ┌────────────────────────────────┐ │                   │
-│                    │  │  Smart Contract:                │ │                   │
-│                    │  │  • Locks ETH when task posted   │ │                   │
-│                    │  │  • Tracks task state on-chain   │ │                   │
-│                    │  │  • Releases ETH on approval     │ │                   │
-│                    │  │  • Emits events for agents      │ │                   │
-│                    │  └────────────────────────────────┘ │                   │
-│                    └──────────────────┬──────────────────┘                   │
-│                                       │                                       │
-│                                       ▼                                       │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                           WORKER AGENT LAYER                                 │
-│                                                                              │
-│    Python Worker Agent (continuously polling)                                │
-│    ┌─────────────────────────────────────────────────────────────────┐     │
-│    │  • Listens for TaskPosted events                                │     │
-│    │  • Claims unclaimed tasks                                       │     │
-│    │  • Simulates "thinking" (3 second delay)                        │     │
-│    │  • Generates mock result (e.g., research output)                │     │
-│    │  • Submits result hash to the blockchain                        │     │
-│    │  • Receives ETH when manager approves                           │     │
-│    └─────────────────────────────────────────────────────────────────┘     │
-│                                       │                                       │
-│                                       ▼                                       │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                         FRONTEND DASHBOARD LAYER                             │
-│                                                                              │
-│    React + Vite + Tailwind Web App                                          │
-│    ┌─────────────────────────────────────────────────────────────────┐     │
-│    │  • Connect MetaMask wallet                                      │     │
-│    │  • View all tasks in real-time (live polling)                   │     │
-│    │  • See swarm topology animation                                 │     │
-│    │  • Trigger new task deployments via Manager Agent               │     │
-│    │  • Monitor task status changes live                             │     │
-│    └─────────────────────────────────────────────────────────────────┘     │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+
+<br/>
+
+### Expand Each Layer
+
+<details>
+<summary><b>👤 HUMAN LAYER</b> — You</summary>
+
+Submit a natural language goal. The Manager Agent decomposes it into 2 sub-tasks with ETH bounties.
+
+Example:
+> *"Build a weather forecast engine"* → {Task: "Write Python scraper", Bounty: 0.05 ETH} + {Task: "Build ML model", Bounty: 0.05 ETH}
+
+</details>
+
+<details>
+<summary><b>🧠 MANAGER AGENT (Python)</b> — Backend</summary>
+
+| File | Purpose |
+|------|---------|
+| `manager_agent.py` | CLI that accepts goals, decomposes into JSON tasks, posts to blockchain, monitors events, approves results |
+| `worker_agent.py`  | Single worker agent — polls for tasks, claims, thinks 3s, submits mock results |
+| `launcher.py`      | Multi-worker orchestrator — launches 1-9 workers with different Hardhat accounts |
+
+**Key Flow:**
+1. Receives goal from `input()`
+2. Breaks into 2 subtasks with `bounty_eth: 0.05`
+3. Signs `postTask()` with `web3.py`
+4. Listens for `TaskSubmitted` events via WebSocket
+5. Calls `approveAndPay(taskId)` to release escrow
+
+</details>
+
+<details>
+<summary><b>⛓️ SMART CONTRACT (Solidity ^0.8.20)</b> — Blockchain</summary>
+
+| Function | Who | What it does |
+|----------|-----|--------------|
+| `postTask(metadataURI)` | Manager | Creates task, locks ETH reward in escrow |
+| `claimTask(taskId)` | Worker | Assigns one worker, status → Claimed |
+| `submitResult(taskId, resultURI)` | Worker | Stores result, status → Submitted |
+| `approveAndPay(taskId)` | Manager | Transfers ETH to worker, status → Verified |
+| `raiseDispute(taskId)` | Anyone | Sets status → Disputed |
+
+**Security:** OpenZeppelin `ReentrancyGuard` on `approveAndPay`. 5 indexed events for every state change.
+
+</details>
+
+<details>
+<summary><b>⚡ WORKER SWARM (Python × 1-9)</b> — Backend</summary>
+
+| Account | Role | Hardhat Key Index |
+|---------|------|-------------------|
+| #0 | Manager | `0xac0974...` |
+| #1-9 | Workers | `0x59c699...`, `0x5de411...`, etc. |
+
+Each worker:
+1. Polls `TaskPosted` events every 5 seconds
+2. Calls `claimTask()` if status is Open
+3. Sleeps 3 seconds (simulated AI thinking)
+4. Generates mock result: `mock://result/task-{id}`
+5. Calls `submitResult()` with the result URI
+
+**Launcher:** `python launcher.py 5` → spins up 5 concurrent workers with different accounts.
+
+</details>
+
+<details>
+<summary><b>🎛️ FRONTEND DASHBOARD (React + Ethers v6)</b></summary>
+
+| Component | What You See |
+|-----------|--------------|
+| Navbar | Wallet pill, network badge, **Dev Wallet** dropdown |
+| Human Command Deck | Typing hero animation, sample prompts, **Deploy to Swarm** |
+| Transaction Activity Log | Real-time tx steps: posting → claiming → submitting → approving |
+| Active Ledger Grid | Color-coded status pills (Open 🟡, Claimed 🔵, Submitted 🟣, Verified 🟢) |
+| Swarm Visualizer | Animated node topology, clickable worker nodes, active cycling |
+| Hardhat Dev Accounts | All 20 accounts with copy/reveal buttons |
+
+**Dual Wallet Support:**
+- **MetaMask** → real wallet experience with popups
+- **Dev Wallet** → pick any Hardhat account 0-19 instantly (no import needed)
+
+</details>
 
 ---
 
