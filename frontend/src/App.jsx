@@ -544,7 +544,7 @@ export default function App() {
       const balance = await providerRef.current.getBalance(address)
 
       signerRef.current = signer
-      contractRef.current = getContract(signer)
+      contractRef.current = await getContract(signer)
 
       setWallet({
         address,
@@ -594,7 +594,7 @@ export default function App() {
 
       providerRef.current = provider
       signerRef.current = signer
-      contractRef.current = getContract(signer)
+      contractRef.current = await getContract(signer)
 
       setWallet({
         address,
