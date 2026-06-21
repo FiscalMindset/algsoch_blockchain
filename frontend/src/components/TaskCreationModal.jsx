@@ -57,7 +57,7 @@ export default function TaskCreationModal({ isOpen, onClose, onPostTask, isLoadi
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
     >
       {/* Modal Card */}
-      <div className="relative w-full max-w-2xl mx-4 bg-slate-900/95 border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)] animate-scale-in">
+      <div className="relative w-full max-w-2xl mx-4 bg-slate-900/95 border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.15)] animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-cyan-500/20">
           <div className="flex items-center gap-3">
@@ -66,7 +66,7 @@ export default function TaskCreationModal({ isOpen, onClose, onPostTask, isLoadi
             </div>
             <div>
               <h2 className="text-base font-semibold text-cyan-400">
-                🚀 Deploy Human Command to Swarm
+                Deploy Human Command to Swarm
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 Submit a goal — agents decompose and execute autonomously
@@ -75,7 +75,7 @@ export default function TaskCreationModal({ isOpen, onClose, onPostTask, isLoadi
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all"
+            className="p-2 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -127,7 +127,7 @@ export default function TaskCreationModal({ isOpen, onClose, onPostTask, isLoadi
           <button
             onClick={handleDeploy}
             disabled={!goal.trim() || isLoading}
-            className="cyber-btn-primary flex items-center gap-2"
+            className="cyber-btn-primary flex items-center gap-2 btn-gradient-shine"
           >
             {isLoading ? (
               <>

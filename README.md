@@ -1,6 +1,71 @@
-# 🐝 Autonomous M2M Agentic Swarm Escrow Protocol
+<!-- Header Banner -->
+<div align="center">
+  <br/>
+  <img src="https://github.com/FiscalMindset.png" width="120" height="120" style="border-radius: 50%; border: 3px solid #22d3ee; box-shadow: 0 0 20px rgba(34,211,238,0.3);" alt="FiscalMindset"/>
+  <br/><br/>
+  <h1>
+    <img src="https://img.shields.io/badge/Swarm-Escrow-22d3ee?style=for-the-badge&labelColor=0f172a&color=22d3ee"/>
+    <img src="https://img.shields.io/badge/Agents-Autonomous-a855f7?style=for-the-badge&labelColor=0f172a&color=a855f7"/>
+    <img src="https://img.shields.io/badge/Chain-Ethereum-6366f1?style=for-the-badge&labelColor=0f172a&color=6366f1"/>
+  </h1>
 
-## Project Overview
+  <h2>
+    🐝 Autonomous M2M Agentic Swarm Escrow Protocol
+  </h2>
+
+  <p>
+    <b>AI Manager Agents</b> decompose human goals → <b>on-chain ETH escrow</b> → <b>Python Worker Agents</b> claim & execute trustlessly
+  </p>
+
+  <p>
+    <img src="https://github.com/FiscalMindset/algsoch_blockchain/workflows/CI/badge.svg" alt="CI"/>
+    <img src="https://img.shields.io/badge/Solidity-%5E0.8.20-363636?logo=solidity&logoColor=white"/>
+    <img src="https://img.shields.io/badge/Hardhat-2.22-yellow?logo=ethereum&logoColor=white"/>
+    <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white"/>
+    <img src="https://img.shields.io/badge/Ethers-v6-2535a0?logo=ethereum&logoColor=white"/>
+    <img src="https://img.shields.io/badge/Tailwind-3.4-06B6D4?logo=tailwindcss&logoColor=white"/>
+    <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white"/>
+    <img src="https://img.shields.io/badge/vite-5.4-646CFF?logo=vite&logoColor=white"/>
+  </p>
+
+  <p>
+    <a href="#-step-by-step-setup"><b>🚀 Quick Start</b></a> • 
+    <a href="#-demo-video"><b>🎥 Demo</b></a> • 
+    <a href="#-architecture-overview"><b>🏗️ Architecture</b></a> • 
+    <a href="#-contract-reference"><b>📋 API</b></a>
+  </p>
+
+  <br/>
+</div>
+
+<!-- Interactive Architecture Video/GIF Placeholder -->
+<div align="center">
+  <table>
+    <tr>
+      <td align="center" width="200">
+        <img src="https://img.shields.io/badge/1.-Human%20Goal-22d3ee?style=flat-square&labelColor=0f172a"/>
+        <br/><sub>Submit natural language task</sub>
+      </td>
+      <td align="center">➡️</td>
+      <td align="center" width="200">
+        <img src="https://img.shields.io/badge/2.-AI%20Manager-a855f7?style=flat-square&labelColor=0f172a"/>
+        <br/><sub>Decomposes + posts with ETH</sub>
+      </td>
+      <td align="center">➡️</td>
+      <td align="center" width="200">
+        <img src="https://img.shields.io/badge/3.-Smart%20Contract-6366f1?style=flat-square&labelColor=0f172a"/>
+        <br/><sub>Locks ETH in escrow</sub>
+      </td>
+      <td align="center">➡️</td>
+      <td align="center" width="200">
+        <img src="https://img.shields.io/badge/4.-AI%20Worker-10b981?style=flat-square&labelColor=0f172a"/>
+        <br/><sub>Claims, executes, gets paid</sub>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<br/>
 
 > **One-Line Pitch:** A local PoC where AI Manager Agents decompose human goals into on-chain escrow tasks, and Python Worker Agents claim and execute them trustlessly — all governed by a Solidity smart contract on a local Hardhat EVM.
 
@@ -515,6 +580,124 @@ Once all services are running, here's the complete workflow:
 
 ---
 
+## 🌐 Deploying to Sepolia Testnet
+
+Sepolia is an Ethereum testnet that simulates the mainnet environment. Unlike local Hardhat, deployments to Sepolia are persistent and accessible to anyone with an internet connection.
+
+### Step 1: Get Sepolia ETH
+
+You'll need Sepolia ETH to pay for gas fees. It's free from these faucets:
+
+| Faucet | URL | Notes |
+|--------|-----|-------|
+| **Alchemy** | https://www.alchemy.com/faucets/ethereum-sepolia | Requires free Alchemy account |
+| **Infura** | https://www.infura.io/faucet | Requires free Infura account |
+| **Google Cloud** | https://cloud.google.com/application/web3/faucet/ethereum | Requires Google account |
+| **QuickNode** | https://faucet.quicknode.com/ethereum/sepolia | Requires free QuickNode account |
+
+1. Create an account at one of the faucets above
+2. Paste your wallet address (from MetaMask)
+3. Receive free Sepolia ETH (typically 0.5-1 ETH per request)
+
+### Step 2: Set Up RPC Provider
+
+You'll need an RPC URL to interact with Sepolia. Get a free API key:
+
+**Option A: Infura (Recommended)**
+1. Sign up at https://www.infura.io
+2. Create a new project
+3. Copy the Sepolia endpoint (format: `https://sepolia.infura.io/v3/YOUR_PROJECT_ID`)
+
+**Option B: Alchemy**
+1. Sign up at https://www.alchemy.com
+2. Create a new app (Sepolia network)
+3. Copy the HTTPS endpoint
+
+### Step 3: Configure Environment
+
+```bash
+cd blockchain
+cp .env.example .env
+```
+
+Edit `.env`:
+```env
+SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/YOUR_INFURA_KEY
+DEPLOYER_PRIVATE_KEY=0xyour_private_key_here
+```
+
+> ⚠️ **Important**: Use a dedicated test wallet for Sepolia. Never use private keys with real mainnet funds.
+
+### Step 4: Install dotenv Dependency
+
+```bash
+cd blockchain
+npm install
+```
+
+### Step 5: Deploy to Sepolia
+
+```bash
+npx hardhat run scripts/deploy-sepolia.js --network sepolia
+```
+
+Expected output:
+```
+Deploying to Sepolia testnet...
+Deployer address: 0x...
+Deployer balance: 1.0 ETH
+Deploying contract...
+Contract deployed to: 0x...
+Deployment info saved to: deployments/sepolia.json
+```
+
+### Step 6: Update Frontend with Sepolia Address
+
+After deployment, copy the contract address and update `frontend/src/utils/contracts.js`:
+
+```javascript
+const DEPLOYMENTS = {
+  31337: '0x5FbDB2315678afecb367f032d93F642f64180aa3',   // Hardhat localhost
+  11155111: '0xDEPLOYED_SEPOLIA_ADDRESS_HERE',           // Sepolia
+}
+```
+
+### Step 7: Configure Backend Agents
+
+Edit `backend/.env`:
+```env
+# Set NETWORK to sepolia
+NETWORK=sepolia
+
+# Add Sepolia RPC
+SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/YOUR_INFURA_KEY
+
+# Add contract address from blockchain/deployments/sepolia.json
+SEPOLIA_CONTRACT_ADDRESS=0xDEPLOYED_SEPOLIA_ADDRESS_HERE
+
+# Update private keys with funded Sepolia wallets
+MANAGER_PRIVATE_KEY=0xyour_sepolia_manager_key
+WORKER_PRIVATE_KEY=0xyour_sepolia_worker_key
+```
+
+### Step 8: Add Sepolia to MetaMask
+
+| Field | Value |
+|-------|-------|
+| Network Name | `Sepolia Testnet` |
+| RPC URL | `https://sepolia.infura.io/v3/YOUR_INFURA_KEY` |
+| Chain ID | `11155111` |
+| Currency Symbol | `ETH` |
+| Block Explorer | `https://sepolia.etherscan.io` |
+
+### Verifying Deployment
+
+1. Search your contract address on https://sepolia.etherscan.io
+2. Verify the contract source code is verified (optional)
+3. Check that transactions are visible and confirming
+
+---
+
 ## 🔧 Troubleshooting
 
 ### ❌ MetaMask Not Connecting to Local Node
@@ -658,4 +841,4 @@ agent-swarm-escrow/
 
 ---
 
-*Built with ❤️ for the autonomous AI agent economy*
+*Built for the autonomous AI agent economy*

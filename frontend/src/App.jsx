@@ -11,21 +11,83 @@ import SwarmVisualizer from './components/SwarmVisualizer'
 import HardhatDevAccounts from './components/HardhatDevAccounts'
 import TxActivityLog from './components/TxActivityLog'
 import DevWalletPicker from './components/DevWalletPicker'
+import ParticleBackground from './components/ParticleBackground'
+
+// ─── Typing Animation Hook ────────────────────────────────────────────────────
+const FULL_TITLE = 'Autonomous M2M Agentic Swarm Escrow Protocol'
+
+function useTypingEffect(text, speed = 50, startDelay = 500) {
+  const [displayText, setDisplayText] = useState('')
+  const [showCursor, setShowCursor] = useState(true)
+
+  useEffect(() => {
+    let index = 0
+    setDisplayText('')
+
+    const startTimeout = setTimeout(() => {
+      const interval = setInterval(() => {
+        if (index < text.length) {
+          setDisplayText(text.slice(0, index + 1))
+          index++
+        } else {
+          clearInterval(interval)
+          // Show cursor for 2 seconds then hide
+          setTimeout(() => setShowCursor(false), 2000)
+        }
+      }, speed)
+
+      return () => clearInterval(interval)
+    }, startDelay)
+
+    return () => clearTimeout(startTimeout)
+  }, [text, speed, startDelay])
+
+  return { displayText, showCursor }
+}
+
+// ─── Section Reveal Hook ──────────────────────────────────────────────────────
+function useSectionReveal() {
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-in')
+            // Stagger children
+            const children = entry.target.querySelectorAll('[data-animate-child]')
+            children.forEach((child, i) => {
+              setTimeout(() => {
+                child.classList.add('animate-in')
+              }, i * 100)
+            })
+          }
+        })
+      },
+      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+    )
+
+    const sections = document.querySelectorAll('[data-animate]')
+    sections.forEach((section) => observer.observe(section))
+
+    return () => observer.disconnect()
+  }, [])
+}
 
 // ─── Toast Container ──────────────────────────────────────────────────────────
 function ToastContainer({ toasts, removeToast }) {
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-3 pointer-events-none">
+    <div className="fixed top-4 right-4 z-[100] flex flex-col gap-3 pointer-events-none">
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-lg border shadow-lg min-w-72 max-w-96 animate-slide-in ${
+          className={`pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-lg border shadow-lg min-w-72 max-w-96 ${
             toast.type === 'error'
-              ? 'bg-red-950/90 border-red-500/40 text-red-300'
+              ? 'bg-red-950/90 border-red-500/40 text-red-300 animate-slide-in-right animate-shake'
               : toast.type === 'success'
-              ? 'bg-green-950/90 border-green-500/40 text-green-300'
-              : 'bg-slate-900/90 border-cyan-500/30 text-slate-200'
+              ? 'bg-green-950/90 border-green-500/40 text-green-300 animate-slide-in-right animate-bounce-in'
+              : 'bg-slate-900/90 border-cyan-500/30 text-slate-200 animate-slide-in-right'
           }`}
+          style={{ '--toast-exit': 'animate-slide-out-right' }}
         >
           <div className="mt-0.5 shrink-0">
             {toast.type === 'error' ? (
@@ -39,7 +101,7 @@ function ToastContainer({ toasts, removeToast }) {
           <p className="flex-1 text-sm leading-snug font-medium">{toast.message}</p>
           <button
             onClick={() => removeToast(toast.id)}
-            className="shrink-0 p-0.5 rounded hover:bg-white/10 transition-colors"
+            className="shrink-0 p-0.5 rounded hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X size={14} />
           </button>
@@ -64,6 +126,30 @@ function SectionHeader({ icon: Icon, title, subtitle }) {
   )
 }
 
+// ─── Hero Title ───────────────────────────────────────────────────────────────
+function HeroTitle() {
+  const { displayText, showCursor } = useTypingEffect(FULL_TITLE, 40, 800)
+
+  return (
+    <div className="text-center mb-8">
+      <h1 className="text-2xl md:text-3xl font-bold tracking-wide">
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-400 to-cyan-400 bg-[length:200%_auto] animate-gradient-shine">
+          {displayText}
+        </span>
+        {showCursor && (
+          <span className="inline-block w-0.5 h-7 bg-cyan-400 ml-1 align-middle animate-typing-cursor" />
+        )}
+      </h1>
+      {/* Fallback static text for no-JS */}
+      <noscript>
+        <h1 className="text-2xl md:text-3xl font-bold text-cyan-400">
+          {FULL_TITLE}
+        </h1>
+      </noscript>
+    </div>
+  )
+}
+
 // ─── Human Command Deck ───────────────────────────────────────────────────────
 const SAMPLE_PROMPTS = [
   'Analyze market sentiment for ETH/USDT and post findings as a JSON report.',
@@ -83,7 +169,7 @@ function HumanCommandDeck({ onSubmitPrompt, onOpenModal, isLoading, wallet, depl
   const fillSample = (sample) => setPrompt(sample)
 
   return (
-    <section className="cyber-card p-6">
+    <section className="cyber-card p-6" data-animate data-animate-delay="2">
       <div className="flex items-center justify-between mb-6">
         <SectionHeader
           icon={Zap}
@@ -93,7 +179,7 @@ function HumanCommandDeck({ onSubmitPrompt, onOpenModal, isLoading, wallet, depl
         {wallet.address && (
           <button
             onClick={onOpenModal}
-            className="cyber-btn text-sm flex items-center gap-2 shrink-0"
+            className="cyber-btn text-sm flex items-center gap-2 btn-gradient-shine"
           >
             <Radar size={14} />
             Open Mission Control
@@ -127,7 +213,7 @@ function HumanCommandDeck({ onSubmitPrompt, onOpenModal, isLoading, wallet, depl
           <button
             type="submit"
             disabled={!prompt.trim() || !wallet.address || isLoading}
-            className="cyber-btn-primary"
+            className="cyber-btn-primary btn-gradient-shine"
           >
             {isLoading ? (
               <span className="flex items-center gap-2">
@@ -237,7 +323,7 @@ function ManualInterventionOverride({ wallet, contract, addToast, addTxLog }) {
   const taskId = parseInt(targetTaskId, 10) || 0
 
   return (
-    <section className="cyber-card p-6">
+    <section className="cyber-card p-6" data-animate data-animate-delay="5">
       <SectionHeader
         icon={AlertTriangle}
         title="Manual Intervention Override"
@@ -254,7 +340,7 @@ function ManualInterventionOverride({ wallet, contract, addToast, addTxLog }) {
             <button
               onClick={handlePostTask}
               disabled={actionLoading !== ''}
-              className="cyber-btn text-sm"
+              className="cyber-btn text-sm btn-gradient-shine"
             >
               {actionLoading === 'postTask' ? 'Posting...' : 'postTask() [0.01 ETH]'}
             </button>
@@ -289,28 +375,28 @@ function ManualInterventionOverride({ wallet, contract, addToast, addTxLog }) {
             <button
               onClick={() => doAction('claimTask', taskId)}
               disabled={!taskId || actionLoading !== ''}
-              className="cyber-btn text-sm"
+              className="cyber-btn text-sm btn-gradient-shine"
             >
               {actionLoading === 'claimTask' ? '...' : 'claimTask()'}
             </button>
             <button
               onClick={() => doAction('submitResult', taskId)}
               disabled={!taskId || actionLoading !== ''}
-              className="cyber-btn text-sm"
+              className="cyber-btn text-sm btn-gradient-shine"
             >
               {actionLoading === 'submitResult' ? '...' : 'submitResult()'}
             </button>
             <button
               onClick={() => doAction('approveAndPay', taskId)}
               disabled={!taskId || actionLoading !== ''}
-              className="cyber-btn text-sm"
+              className="cyber-btn text-sm btn-gradient-shine"
             >
               {actionLoading === 'approveAndPay' ? '...' : 'approveAndPay()'}
             </button>
             <button
               onClick={() => doAction('raiseDispute', taskId)}
               disabled={!taskId || actionLoading !== ''}
-              className="cyber-btn text-sm"
+              className="cyber-btn text-sm btn-gradient-shine"
             >
               {actionLoading === 'raiseDispute' ? '...' : 'raiseDispute()'}
             </button>
@@ -337,6 +423,9 @@ export default function App() {
   const signerRef = useRef(null)
   const contractRef = useRef(null)
   const balanceIntervalRef = useRef(null)
+
+  // Initialize section reveal animations
+  useSectionReveal()
 
   // ── Toast helpers ─────────────────────────────────────────────────────────
   const addToast = useCallback((toast) => {
@@ -822,6 +911,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200">
+      {/* Particle Background */}
+      <ParticleBackground />
+
       {/* Sticky Navbar */}
       <Navbar
         wallet={wallet}
@@ -839,14 +931,14 @@ export default function App() {
         <div className="bg-red-500/10 border-y border-red-500/20 py-3 px-6">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <p className="text-sm text-red-400">
-              ⚠️ Connected to chain <strong>{wallet.chainId}</strong> — contract only exists on{' '}
+              Warning: Connected to chain <strong>{wallet.chainId}</strong> — contract only exists on{' '}
               <strong>Hardhat Localhost (31337)</strong>. All transactions will fail.
             </p>
             <button
               onClick={switchNetwork}
-              className="text-xs px-3 py-1.5 rounded-md bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 transition-colors cursor-pointer"
+              className="text-xs px-3 py-1.5 rounded-md bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 transition-all cursor-pointer"
             >
-              Switch to Hardhat →
+              Switch to Hardhat
             </button>
           </div>
         </div>
@@ -857,13 +949,13 @@ export default function App() {
         <div className="bg-yellow-500/10 border-y border-yellow-500/20 py-3 px-6">
           <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
             <p className="text-sm text-yellow-400">
-              ⚠️ Connected account <strong>{wallet.address.slice(0, 8)}...</strong> has <strong>0 GO-ETH</strong>.
+              Warning: Connected account <strong>{wallet.address.slice(0, 8)}...</strong> has <strong>0 GO-ETH</strong>.
               Scroll to <strong>"Hardhat Dev Accounts"</strong> below, copy Account #0's private key,
               and import it into MetaMask (Account icon → Import Account).
             </p>
             <button
               onClick={revokeConnection}
-              className="text-xs px-3 py-1.5 rounded-md bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/30 transition-colors cursor-pointer shrink-0"
+              className="text-xs px-3 py-1.5 rounded-md bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/30 transition-all cursor-pointer shrink-0"
             >
               Revoke → Reconnect
             </button>
@@ -872,9 +964,16 @@ export default function App() {
       )}
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-6 py-8 flex flex-col gap-8">
+      <main className="max-w-5xl mx-auto px-6 py-8 flex flex-col gap-8 relative z-10">
+        {/* Hero Title with Typing Animation */}
+        <div data-animate>
+          <HeroTitle />
+        </div>
+
         {/* Section 1: Swarm Visualizer */}
-        <SwarmVisualizer tasks={tasks} formatEth={formatEth} STATUS_NAMES={STATUS_NAMES} />
+        <div data-animate data-animate-delay="1">
+          <SwarmVisualizer tasks={tasks} formatEth={formatEth} STATUS_NAMES={STATUS_NAMES} />
+        </div>
 
         {/* Section 2: Human Command Deck */}
         <HumanCommandDeck
@@ -886,7 +985,9 @@ export default function App() {
         />
 
         {/* Section 3: Transaction Activity Log */}
-        <TxActivityLog transactions={txLog} />
+        <div data-animate data-animate-delay="3">
+          <TxActivityLog transactions={txLog} />
+        </div>
 
         {/* Section 4: The Immutable Swarm Ledger */}
         <ActiveLedgerGrid
@@ -910,7 +1011,9 @@ export default function App() {
         />
 
         {/* Section 6: Hardhat Dev Accounts */}
-        <HardhatDevAccounts wallet={wallet} onRequestAccountSwitch={handleSwitchAccount} />
+        <div data-animate data-animate-delay="6">
+          <HardhatDevAccounts wallet={wallet} onRequestAccountSwitch={handleSwitchAccount} />
+        </div>
       </main>
 
       {/* Task Creation Modal */}

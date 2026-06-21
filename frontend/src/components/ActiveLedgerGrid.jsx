@@ -1,5 +1,21 @@
 import { ExternalLink, CheckCircle, AlertCircle, Clock, Shield } from 'lucide-react'
 
+const STATUS_GLOW_CLASSES = {
+  0: 'status-open border-l-4 border-l-sky-400',
+  1: 'status-claimed border-l-4 border-l-yellow-400',
+  2: 'status-submitted border-l-4 border-l-purple-400',
+  3: 'status-completed border-l-4 border-l-green-400',
+  4: 'status-disputed border-l-4 border-l-red-400',
+}
+
+const STATUS_PILL_ANIMATIONS = {
+  0: 'animate-status-pulse',
+  1: 'animate-status-pulse',
+  2: '',
+  3: '',
+  4: 'animate-shake',
+}
+
 export default function ActiveLedgerGrid({
   tasks,
   wallet,
@@ -16,9 +32,10 @@ export default function ActiveLedgerGrid({
 
   const renderStatusPill = (status) => {
     const colorClass = STATUS_COLORS[status] || 'bg-slate-500/20 text-slate-400 border-slate-500/30'
+    const animationClass = STATUS_PILL_ANIMATIONS[status] || ''
     return (
       <span
-        className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${colorClass}`}
+        className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium ${colorClass} ${animationClass}`}
       >
         {status === 0 && <Clock size={10} />}
         {status === 1 && <Clock size={10} />}
@@ -41,7 +58,7 @@ export default function ActiveLedgerGrid({
           key="claim"
           onClick={() => onClaimTask(task.taskId)}
           disabled={isLoading}
-          className="text-xs px-3 py-1 rounded border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="text-xs px-3 py-1.5 rounded border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 hover:scale-105 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed btn-gradient-shine"
         >
           Claim
         </button>
@@ -55,7 +72,7 @@ export default function ActiveLedgerGrid({
           key="approve"
           onClick={() => onApprove(task.taskId)}
           disabled={isLoading}
-          className="text-xs px-3 py-1 rounded border border-green-500/30 text-green-400 hover:bg-green-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="text-xs px-3 py-1.5 rounded border border-green-500/30 text-green-400 hover:bg-green-500/10 hover:scale-105 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed btn-gradient-shine"
         >
           Approve &amp; Pay
         </button>
@@ -69,7 +86,7 @@ export default function ActiveLedgerGrid({
           key="dispute"
           onClick={() => onDispute(task.taskId)}
           disabled={isLoading}
-          className="text-xs px-3 py-1 rounded border border-red-500/30 text-red-400/80 hover:bg-red-500/10 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="text-xs px-3 py-1.5 rounded border border-red-500/30 text-red-400/80 hover:bg-red-500/10 hover:scale-105 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed btn-gradient-shine"
         >
           Dispute
         </button>
@@ -79,21 +96,33 @@ export default function ActiveLedgerGrid({
     return <div className="flex gap-2 flex-wrap">{actions}</div>
   }
 
+  const getStatusGlowClass = (status) => {
+    return STATUS_GLOW_CLASSES[status] || 'border-l-4 border-l-slate-500'
+  }
+
   return (
-    <section className="cyber-card p-6">
+    <section className="cyber-card p-6" data-animate data-animate-delay="4">
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
           <Shield size={20} className="text-cyan-400" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-slate-100">📜 The Immutable Swarm Ledger</h2>
+          <h2 className="text-lg font-semibold text-slate-100">The Immutable Swarm Ledger</h2>
           <p className="text-sm text-slate-500">Live on-chain task registry</p>
         </div>
       </div>
 
+      {/* Loading shimmer overlay */}
+      {isLoading && tasks.length === 0 && (
+        <div className="mb-4 p-4 rounded-lg bg-slate-900/50 border border-cyan-500/10">
+          <div className="h-4 w-48 rounded bg-gradient-to-r from-slate-800 via-cyan-500/10 to-slate-800 animate-shimmer mb-2" />
+          <div className="h-3 w-32 rounded bg-gradient-to-r from-slate-800 via-cyan-500/10 to-slate-800 animate-shimmer" />
+        </div>
+      )}
+
       {tasks.length === 0 ? (
         <div className="min-h-40 flex flex-col items-center justify-center text-slate-600 text-sm gap-3">
-          <div className="text-4xl">🐝</div>
+          <div className="text-4xl animate-float">🐝</div>
           <p className="text-center max-w-xs">
             No tasks in the swarm ledger yet. Deploy your first mission above!
           </p>
@@ -132,7 +161,10 @@ export default function ActiveLedgerGrid({
             </thead>
             <tbody className="divide-y divide-cyan-500/5">
               {tasks.map((task) => (
-                <tr key={task.taskId} className="hover:bg-cyan-500/5 transition-colors">
+                <tr
+                  key={task.taskId}
+                  className={`hover:bg-cyan-500/5 transition-all duration-200 ${getStatusGlowClass(task.status)}`}
+                >
                   <td className="py-3 pr-4 font-mono text-cyan-400 text-xs">
                     #{task.taskId}
                   </td>
@@ -185,11 +217,11 @@ export default function ActiveLedgerGrid({
             {tasks.map((task) => (
               <div
                 key={task.taskId}
-                className="border border-cyan-500/10 rounded-lg p-4 bg-slate-900/50 flex flex-col gap-3"
+                className={`task-card ${getStatusGlowClass(task.status)}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-cyan-400 text-xs">#{task.taskId}</span>
-                  {renderStatusPill(task.status)}
+                  <div className="status-glow">{renderStatusPill(task.status)}</div>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                   <span className="text-slate-500">Manager</span>

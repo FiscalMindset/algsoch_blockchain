@@ -180,8 +180,22 @@ def main():
     load_dotenv(env_path)
 
     private_key = os.environ.get("WORKER_PRIVATE_KEY")
-    rpc_url = os.environ.get("RPC_URL", "http://127.0.0.1:8545")
-    contract_address = os.environ.get("CONTRACT_ADDRESS")
+
+    # Network selection: use Sepolia if NETWORK=sepolia, otherwise default to local
+    network_mode = os.environ.get("NETWORK", "local").lower()
+    if network_mode == "sepolia":
+        rpc_url = os.environ.get("SEPOLIA_RPC_URL")
+        contract_address = os.environ.get("SEPOLIA_CONTRACT_ADDRESS")
+        if not rpc_url:
+            print("[ERROR] NETWORK=sepolia but SEPOLIA_RPC_URL not set in .env")
+            sys.exit(1)
+        if not contract_address:
+            print("[ERROR] NETWORK=sepolia but SEPOLIA_CONTRACT_ADDRESS not set in .env")
+            sys.exit(1)
+        print(f"[Worker] Using Sepolia testnet")
+    else:
+        rpc_url = os.environ.get("RPC_URL", "http://127.0.0.1:8545")
+        contract_address = os.environ.get("CONTRACT_ADDRESS")
 
     if not private_key:
         print("[ERROR] WORKER_PRIVATE_KEY not set in .env")

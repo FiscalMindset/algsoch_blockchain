@@ -1,6 +1,20 @@
 import { ethers } from 'ethers'
 
-export const CONTRACT_ADDRESS = '0x5FbDB2315678afecb367f032d93F642f64180aa3'
+// Network-specific contract addresses
+const DEPLOYMENTS = {
+  31337: '0x5FbDB2315678afecb367f032d93F642f64180aa3',   // Hardhat localhost
+  11155111: '0x0000000000000000000000000000000000000000', // Sepolia (fill after deployment)
+}
+
+/**
+ * Get contract address for a given chainId.
+ * Falls back to localhost address if chainId is not recognized.
+ * @param {number} chainId
+ * @returns {string}
+ */
+export function getContractAddress(chainId) {
+  return DEPLOYMENTS[chainId] || DEPLOYMENTS[31337]
+}
 
 export const ABI = [
   { inputs: [], name: 'AlreadyAssigned', type: 'error' },
@@ -125,11 +139,15 @@ export const ABI = [
 
 /**
  * Returns an ethers.Contract instance connected to the given provider or signer.
+ * Automatically detects the network chainId and uses the correct contract address.
  * @param {ethers.Provider | ethers.Signer} providerOrSigner
- * @returns {ethers.Contract}
+ * @returns {Promise<ethers.Contract>}
  */
-export function getContract(providerOrSigner) {
-  return new ethers.Contract(CONTRACT_ADDRESS, ABI, providerOrSigner)
+export async function getContract(providerOrSigner) {
+  const network = await providerOrSigner.getNetwork()
+  const chainId = Number(network.chainId)
+  const address = getContractAddress(chainId)
+  return new ethers.Contract(address, ABI, providerOrSigner)
 }
 
 /**

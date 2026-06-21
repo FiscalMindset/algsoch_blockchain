@@ -14,11 +14,11 @@ export default function Navbar({ wallet, walletSource, onConnect, onConnectDev, 
       <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
         {/* Logo / Brand */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.15)]">
+          <div className="w-9 h-9 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.15)] animate-glow-pulse">
             <Shield size={18} className="text-cyan-400" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-cyan-400 tracking-widest uppercase leading-none">
+            <h1 className="text-base font-bold text-cyan-400 tracking-widest uppercase leading-none glow-text">
               🐝 SwarmEscrow Protocol
             </h1>
             <p className="text-xs text-slate-600 mt-0.5">Autonomous M2M Escrow</p>
@@ -31,7 +31,7 @@ export default function Navbar({ wallet, walletSource, onConnect, onConnectDev, 
             <button
               onClick={onConnect}
               disabled={connecting}
-              className="cyber-btn text-sm flex items-center gap-2"
+              className="cyber-btn text-sm flex items-center gap-2 btn-gradient-shine"
             >
               {connecting ? (
                 <span className="inline-block w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
@@ -53,7 +53,7 @@ export default function Navbar({ wallet, walletSource, onConnect, onConnectDev, 
             ) : (
               <button
                 onClick={onSwitchNetwork}
-                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 transition-all cursor-pointer"
                 title="Click to switch to Hardhat Localhost"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
@@ -62,14 +62,14 @@ export default function Navbar({ wallet, walletSource, onConnect, onConnectDev, 
             )}
 
             {/* Address + Balance card */}
-            <div className="cyber-card px-3 py-2 flex items-center gap-3">
-              <CircleDot size={14} className="text-cyan-400/60 shrink-0" />
+            <div className="cyber-card px-3 py-2 flex items-center gap-3 hover:border-cyan-500/50 transition-all">
+              <CircleDot size={14} className="text-cyan-400/60 shrink-0 animate-pulse" />
               <span className="text-sm font-mono text-cyan-400">{truncated}</span>
               <span className="text-xs text-slate-400">{wallet.balance} ETH</span>
               {onDisconnect && (
                 <button
                   onClick={onDisconnect}
-                  className="text-xs text-slate-500 hover:text-slate-300 transition-colors ml-1 px-2 py-1 rounded hover:bg-slate-800"
+                  className="text-xs text-slate-500 hover:text-slate-300 transition-colors ml-1 px-2 py-1 rounded hover:bg-slate-800 cursor-pointer"
                   title="Disconnect (local state only — MetaMask still remembers this site)"
                 >
                   <LogOut size={12} className="inline" /> Disconnect
@@ -78,7 +78,7 @@ export default function Navbar({ wallet, walletSource, onConnect, onConnectDev, 
               {onRevoke && (
                 <button
                   onClick={onRevoke}
-                  className="text-xs text-slate-500 hover:text-red-400 transition-colors ml-1 px-2 py-1 rounded hover:bg-red-500/10"
+                  className="text-xs text-slate-500 hover:text-red-400 transition-colors ml-1 px-2 py-1 rounded hover:bg-red-500/10 cursor-pointer"
                   title="Revoke MetaMask permission (forces fresh account picker next time)"
                 >
                   Revoke
