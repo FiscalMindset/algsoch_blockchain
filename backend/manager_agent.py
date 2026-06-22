@@ -16,7 +16,16 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+# Load .env at module level so ai_client can read NVIDIA_API_KEY on import
+_backend_dir = Path(__file__).parent
+_env_path = _backend_dir / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path)
+
 from web3 import Web3
+
+from ai_client import decompose_goal_nvidia
 
 # ---------------------------------------------------------------------------
 # Contract ABI — mirrors AgentSwarmEscrow.sol (Chunk 1)
@@ -188,10 +197,23 @@ TASK_TEMPLATES = {
 
 def decompose_goal(goal: str) -> list[dict]:
     """
-    Decompose a human goal into sub-tasks using keyword matching and string templating.
+    Decompose a human goal into sub-tasks.
+    Tries NVIDIA AI first; falls back to keyword-matching templates on failure.
     Returns a list of dicts with 'task' and 'bounty_eth' keys.
-    Falls back to generic decomposition if no keyword matches.
     """
+    # Try NVIDIA AI decomposition first
+    try:
+        tasks = decompose_goal_nvidia(goal)
+        if tasks:
+            task_summary = "; ".join(t["task"][:50] + ("..." if len(t["task"]) > 50 else "") for t in tasks)
+            print(f"[Manager] AI decomposition: {task_summary}")
+            return tasks
+        else:
+            print("[Manager] AI decomposition failed, using fallback templates.")
+    except Exception as exc:
+        print(f"[Manager] AI decomposition failed, using fallback templates. ({exc})")
+
+    # Fallback: keyword matching
     goal_lower = goal.lower()
 
     for keywords, tasks in TASK_TEMPLATES.items():
@@ -348,7 +370,7 @@ def main():
             "value": bounty_wei,
             "nonce": nonce,
             "chainId": chain_id,
-            "gas": 200_000,
+            "gas": 2_000_000,
             "gasPrice": w3.eth.gas_price,
         }
 
@@ -421,7 +443,7 @@ def main():
                             "from": account.address,
                             "nonce": nonce,
                             "chainId": chain_id,
-                            "gas": 200_000,
+                            "gas": 2_000_000,
                             "gasPrice": w3.eth.gas_price,
                         }
 

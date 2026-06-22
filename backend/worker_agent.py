@@ -9,13 +9,17 @@ Continuous loop that:
 4. Submits the result via submitResult()
 """
 
+import base64
 import os
 import time
 import sys
+import urllib.parse
 from pathlib import Path
 
 from dotenv import load_dotenv
 from web3 import Web3
+
+from ai_client import execute_task_nvidia
 
 # ---------------------------------------------------------------------------
 # Contract ABI — mirrors AgentSwarmEscrow.sol (Chunk 1)
@@ -153,12 +157,29 @@ def print_banner():
 # Task processing — local mock (no external APIs)
 # ---------------------------------------------------------------------------
 
-def generate_mock_result(task_id: int, metadata_uri: str) -> str:
+def generate_task_result(task_id: int, metadata_uri: str) -> str:
     """
-    Generate a deterministic mock result URI for a completed task.
-    In production this would be a real computation result stored on IPFS,
-    Arweave, or a similar decentralized storage layer.
+    Execute a real AI task using NVIDIA NIM and return the result as a data URI.
+
+    Falls back to a mock URI if the AI call fails or returns empty.
     """
+    # Extract task description from metadata URI (e.g. mock://task/Write+a+Python+weather+scraper)
+    prefix = "mock://task/"
+    if metadata_uri.startswith(prefix):
+        encoded = metadata_uri[len(prefix):]
+        task_description = urllib.parse.unquote(encoded)
+    else:
+        task_description = metadata_uri
+
+    if task_description:
+        result = execute_task_nvidia(task_description)
+        if result:
+            encoded_result = base64.b64encode(result.encode()).decode()
+            data_uri = f"data:text/plain;base64,{encoded_result}"
+            print(f"[Worker] AI generated result ({len(result)} chars)")
+            return data_uri
+
+    print("[Worker] AI execution failed, using mock result.")
     return f"mock://result/task-{task_id}-completed-at-{int(time.time())}"
 
 
@@ -290,7 +311,7 @@ def main():
                             "from": account.address,
                             "nonce": nonce,
                             "chainId": chain_id,
-                            "gas": 200_000,
+                            "gas": 2_000_000,
                             "gasPrice": w3.eth.gas_price,
                         }
 
@@ -315,9 +336,9 @@ def main():
                             print(f"           {'.' * dots}{' ' * (3 - dots)}")
 
                         # -----------------------------------------------------------------
-                        # Step 3: Generate mock result and submit
+                        # Step 3: Generate task result (AI or mock fallback) and submit
                         # -----------------------------------------------------------------
-                        result_uri = generate_mock_result(task_id, metadata_uri)
+                        result_uri = generate_task_result(task_id, metadata_uri)
                         print(f"[Worker] Generated result: {result_uri}")
                         print(f"[Worker] Submitting result for task #{task_id} ...")
 
@@ -326,7 +347,7 @@ def main():
                             "from": account.address,
                             "nonce": nonce,
                             "chainId": w3.eth.chain_id,
-                            "gas": 200_000,
+                            "gas": 2_000_000,
                             "gasPrice": w3.eth.gas_price,
                         }
 

@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useContext } from 'react'
 import { ethers } from 'ethers'
 import { getContract, getTasks, STATUS_NAMES, STATUS_COLORS, formatEth, detectProvider } from './utils/contracts'
 import { getDevSigner, getHardhatProvider } from './utils/devWallet'
-import { Shield, Zap, AlertTriangle, CheckCircle2, X, Radar } from 'lucide-react'
+import { shortenAddress } from './utils/uriResolver'
+import { Zap, AlertTriangle, CheckCircle2, X, Radar } from 'lucide-react'
+import { NotificationContext } from './context/NotificationContext'
 
 import Navbar from './components/Navbar'
 import TaskCreationModal from './components/TaskCreationModal'
@@ -10,8 +12,13 @@ import ActiveLedgerGrid from './components/ActiveLedgerGrid'
 import SwarmVisualizer from './components/SwarmVisualizer'
 import HardhatDevAccounts from './components/HardhatDevAccounts'
 import TxActivityLog from './components/TxActivityLog'
-import DevWalletPicker from './components/DevWalletPicker'
+// import DevWalletPicker from './components/DevWalletPicker'
 import ParticleBackground from './components/ParticleBackground'
+import DeploymentWizard from './components/DeploymentWizard'
+import SwarmActivityFeed from './components/SwarmActivityFeed'
+import AdvancedNotificationSystem from './components/AdvancedNotificationSystem'
+import AIConsole from './components/AIConsole'
+import DecomposeConfirmModal from './components/DecomposeConfirmModal'
 
 // ─── Typing Animation Hook ────────────────────────────────────────────────────
 const FULL_TITLE = 'Autonomous M2M Agentic Swarm Escrow Protocol'
@@ -31,7 +38,6 @@ function useTypingEffect(text, speed = 50, startDelay = 500) {
           index++
         } else {
           clearInterval(interval)
-          // Show cursor for 2 seconds then hide
           setTimeout(() => setShowCursor(false), 2000)
         }
       }, speed)
@@ -53,7 +59,6 @@ function useSectionReveal() {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add('animate-in')
-            // Stagger children
             const children = entry.target.querySelectorAll('[data-animate-child]')
             children.forEach((child, i) => {
               setTimeout(() => {
@@ -73,7 +78,7 @@ function useSectionReveal() {
   }, [])
 }
 
-// ─── Toast Container ──────────────────────────────────────────────────────────
+// ─── Toast Container (legacy, kept for compatibility) ─────────────────────────
 function ToastContainer({ toasts, removeToast }) {
   return (
     <div className="fixed top-4 right-4 z-[100] flex flex-col gap-3 pointer-events-none">
@@ -140,7 +145,6 @@ function HeroTitle() {
           <span className="inline-block w-0.5 h-7 bg-cyan-400 ml-1 align-middle animate-typing-cursor" />
         )}
       </h1>
-      {/* Fallback static text for no-JS */}
       <noscript>
         <h1 className="text-2xl md:text-3xl font-bold text-cyan-400">
           {FULL_TITLE}
@@ -157,7 +161,7 @@ const SAMPLE_PROMPTS = [
   'Fetch current weather data for New York, London, and Tokyo in Celsius.',
 ]
 
-function HumanCommandDeck({ onSubmitPrompt, onOpenModal, isLoading, wallet, deploymentStep }) {
+function HumanCommandDeck({ onSubmitPrompt, onOpenModal, isLoading, wallet, tasks, deploymentStartTime }) {
   const [prompt, setPrompt] = useState('')
 
   const handleSubmit = (e) => {
@@ -227,12 +231,7 @@ function HumanCommandDeck({ onSubmitPrompt, onOpenModal, isLoading, wallet, depl
         </div>
       </form>
 
-      {/* Deployment progress area */}
-      {isLoading && deploymentStep && (
-        <div className="mt-4 p-3 rounded-lg bg-cyan-950/30 border border-cyan-500/20">
-          <p className="text-sm text-cyan-300 font-medium">{deploymentStep}</p>
-        </div>
-      )}
+      <DeploymentWizard tasks={tasks} isDeploying={isLoading} deploymentStartTime={deploymentStartTime} />
 
       {!wallet.address && (
         <p className="mt-3 text-xs text-slate-600">
@@ -244,17 +243,17 @@ function HumanCommandDeck({ onSubmitPrompt, onOpenModal, isLoading, wallet, depl
 }
 
 // ─── Manual Intervention Override ────────────────────────────────────────────
-function ManualInterventionOverride({ wallet, contract, addToast, addTxLog }) {
+function ManualInterventionOverride({ wallet, contract, addTxLog }) {
+  const { addNotification } = useContext(NotificationContext)
   const [targetTaskId, setTargetTaskId] = useState('')
   const [resultURI, setResultURI] = useState('')
   const [actionLoading, setActionLoading] = useState('')
 
   const doAction = async (action, taskId) => {
     if (!contract) {
-      addToast({ type: 'error', message: 'Wallet not connected.' })
+      addNotification({ type: 'error', title: 'Wallet Not Connected', message: 'Wallet not connected.', agentIcon: '⚠️' })
       return
     }
-    const txId = `${action}-${taskId}-${Date.now()}`
     const taskLabel = `Task #${taskId} · ${action}()`
 
     addTxLog(taskLabel, 'pending', null, 'Confirm in MetaMask...')
@@ -271,18 +270,18 @@ function ManualInterventionOverride({ wallet, contract, addToast, addTxLog }) {
         tx = await contract.submitResult(taskId, resultURI || 'ipfs://mock-result')
       }
       addTxLog(taskLabel, 'pending', tx.hash, `Mining transaction... ${tx.hash.slice(0, 10)}...`)
-      addToast({ type: 'info', message: `Mining ${action}... tx: ${tx.hash.slice(0, 10)}...` })
+      addNotification({ type: 'info', title: 'Transaction Mining', message: `Mining ${action}... tx: ${tx.hash.slice(0, 10)}...`, agentIcon: '⛏️' })
       await tx.wait()
       addTxLog(taskLabel, 'success', tx.hash, `${action} confirmed on-chain.`)
-      addToast({ type: 'success', message: `${action} confirmed on-chain.` })
+      addNotification({ type: 'success', title: 'Transaction Confirmed', message: `${action} confirmed on-chain.`, agentIcon: '✅' })
     } catch (err) {
       if (err.code === 4001 || err.reason === 'ACTION_REJECTED') {
         addTxLog(taskLabel, 'error', null, 'Transaction rejected by user.')
-        addToast({ type: 'error', message: 'Transaction rejected by user.' })
+        addNotification({ type: 'error', title: 'Transaction Rejected', message: 'Transaction rejected by user.', agentIcon: '⚠️' })
       } else {
         const reason = err.reason || err.message || 'Unknown error'
         addTxLog(taskLabel, 'error', null, reason)
-        addToast({ type: 'error', message: `${action} failed: ${reason}` })
+        addNotification({ type: 'error', title: 'Transaction Failed', message: `${action} failed: ${reason}`, agentIcon: '⚠️' })
       }
     } finally {
       setActionLoading('')
@@ -291,10 +290,9 @@ function ManualInterventionOverride({ wallet, contract, addToast, addTxLog }) {
 
   const handlePostTask = async () => {
     if (!contract) {
-      addToast({ type: 'error', message: 'Wallet not connected.' })
+      addNotification({ type: 'error', title: 'Wallet Not Connected', message: 'Wallet not connected.', agentIcon: '⚠️' })
       return
     }
-    const txId = `postTask-manual-${Date.now()}`
     addTxLog('Manual Post Task', 'pending', null, 'Confirm in MetaMask...')
     try {
       setActionLoading('postTask')
@@ -302,18 +300,18 @@ function ManualInterventionOverride({ wallet, contract, addToast, addTxLog }) {
       const value = ethers.parseEther('0.01')
       const tx = await contract.postTask(metadataURI, { value })
       addTxLog('Manual Post Task', 'pending', tx.hash, `Mining... ${tx.hash.slice(0, 10)}...`)
-      addToast({ type: 'info', message: `Posting task... tx: ${tx.hash.slice(0, 10)}...` })
+      addNotification({ type: 'info', title: 'Posting Task', message: `Posting task... tx: ${tx.hash.slice(0, 10)}...`, agentIcon: '🚀' })
       await tx.wait()
       addTxLog('Manual Post Task', 'success', tx.hash, 'Task posted and 0.01 ETH locked in escrow.')
-      addToast({ type: 'success', message: 'Task posted and locked in escrow.' })
+      addNotification({ type: 'success', title: 'Task Posted', message: 'Task posted and 0.01 ETH locked in escrow.', agentIcon: '✅' })
     } catch (err) {
       if (err.code === 4001 || err.reason === 'ACTION_REJECTED') {
         addTxLog('Manual Post Task', 'error', null, 'Transaction rejected by user.')
-        addToast({ type: 'error', message: 'Transaction rejected by user.' })
+        addNotification({ type: 'error', title: 'Transaction Rejected', message: 'Transaction rejected by user.', agentIcon: '⚠️' })
       } else {
         const reason = err.reason || err.message || 'Unknown error'
         addTxLog('Manual Post Task', 'error', null, reason)
-        addToast({ type: 'error', message: `postTask failed: ${reason}` })
+        addNotification({ type: 'error', title: 'Transaction Failed', message: `postTask failed: ${reason}`, agentIcon: '⚠️' })
       }
     } finally {
       setActionLoading('')
@@ -409,6 +407,8 @@ function ManualInterventionOverride({ wallet, contract, addToast, addTxLog }) {
 
 // ─── App Root ─────────────────────────────────────────────────────────────────
 export default function App() {
+  const { addNotification } = useContext(NotificationContext)
+
   const [wallet, setWallet] = useState({ address: null, balance: '0', chainId: null })
   const [walletSource, setWalletSource] = useState(null) // 'metamask' | 'dev' | null
   const [tasks, setTasks] = useState([])
@@ -417,7 +417,13 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [showModal, setShowModal] = useState(false)
-  const [deploymentStep, setDeploymentStep] = useState(null)
+  const [, setDeploymentStep] = useState(null)
+  const [deploymentStartTime, setDeploymentStartTime] = useState(null)
+
+  // ── Chunk 3: Decomposition state ──────────────────────────────────────────
+  const [decomposedTasks, setDecomposedTasks] = useState([])
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const prevTasksRef = useRef([])
 
   const providerRef = useRef(null)
   const signerRef = useRef(null)
@@ -427,15 +433,7 @@ export default function App() {
   // Initialize section reveal animations
   useSectionReveal()
 
-  // ── Toast helpers ─────────────────────────────────────────────────────────
-  const addToast = useCallback((toast) => {
-    const id = Date.now() + Math.random()
-    setToasts((prev) => [...prev, { ...toast, id }])
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id))
-    }, 5000)
-  }, [])
-
+  // ── Toast helpers (legacy) ────────────────────────────────────────────────
   const removeToast = useCallback((id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id))
   }, [])
@@ -456,11 +454,44 @@ export default function App() {
     if (!contractRef.current) return
     try {
       const onChainTasks = await getTasks(contractRef.current)
+      const prevTasks = prevTasksRef.current
+
+      // Status change notifications
+      onChainTasks.forEach((curr) => {
+        const prev = prevTasks.find((t) => t.taskId === curr.taskId)
+        if (!prev) return
+        if (prev.status === 0 && curr.status === 1) {
+          addNotification({
+            type: 'info',
+            title: 'Task Claimed',
+            message: `Task #${curr.taskId} claimed by ${shortenAddress(curr.workerAgent)}`,
+            agentIcon: '🐝',
+          })
+        }
+        if (prev.status === 1 && curr.status === 2) {
+          addNotification({
+            type: 'info',
+            title: 'Result Submitted',
+            message: `Task #${curr.taskId} result submitted`,
+            agentIcon: '🐝',
+          })
+        }
+        if (prev.status === 2 && curr.status === 3) {
+          addNotification({
+            type: 'success',
+            title: 'Task Approved',
+            message: `Task #${curr.taskId} approved — ${formatEth(curr.reward)} ETH released`,
+            agentIcon: '🧠',
+          })
+        }
+      })
+
+      prevTasksRef.current = onChainTasks
       setTasks(onChainTasks)
     } catch (err) {
       // Silently skip refresh failures — wallet may be disconnected
     }
-  }, [])
+  }, [addNotification])
 
   // ── Poll ETH balance ───────────────────────────────────────────────────────
   const pollBalance = useCallback(async () => {
@@ -482,14 +513,16 @@ export default function App() {
     try {
       const detected = await detectProvider()
       if (!detected) {
-        addToast({
+        addNotification({
           type: 'error',
+          title: 'MetaMask Not Detected',
           message:
-            'MetaMask not detected.\n\n' +
             '1. Make sure you are using http://localhost:5173 (NOT the IP address)\n' +
             '2. Use a normal browser window, NOT Incognito / Private\n' +
             '3. Disable conflicting wallets (Coinbase, Phantom, Trust)\n' +
             '4. Refresh the page after installing MetaMask.',
+          agentIcon: '⚠️',
+          persistent: true,
         })
         setConnecting(false)
         return
@@ -501,17 +534,17 @@ export default function App() {
 
       // Auto-prompt to switch if on wrong chain
       if (chainId !== 31337) {
-        addToast({
+        addNotification({
           type: 'warning',
-          message:
-            `Connected on chain ${chainId} — switching to Hardhat Localhost (31337)...`,
+          title: 'Wrong Network',
+          message: `Connected on chain ${chainId} — switching to Hardhat Localhost (31337)...`,
+          agentIcon: '⚠️',
         })
         try {
           await detected.provider.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: '0x7a69' }],
           })
-          // After successful switch, reload so we get a clean state on the new chain
           window.location.reload()
           return
         } catch (switchError) {
@@ -552,7 +585,12 @@ export default function App() {
         chainId: Number(network.chainId),
       })
 
-      addToast({ type: 'success', message: `Connected: ${address.slice(0, 10)}...` })
+      addNotification({
+        type: 'success',
+        title: 'Wallet Connected',
+        message: `Connected: ${shortenAddress(address)}`,
+        agentIcon: '✅',
+      })
 
       // Start balance polling
       balanceIntervalRef.current = setInterval(pollBalance, 10000)
@@ -561,14 +599,24 @@ export default function App() {
       await refreshTasks()
     } catch (err) {
       if (err.code === 4001 || err.reason === 'ACTION_REJECTED') {
-        addToast({ type: 'error', message: 'MetaMask connection rejected.' })
+        addNotification({
+          type: 'error',
+          title: 'Connection Rejected',
+          message: 'MetaMask connection rejected.',
+          agentIcon: '⚠️',
+        })
       } else {
-        addToast({ type: 'error', message: `Connection failed: ${err.message}` })
+        addNotification({
+          type: 'error',
+          title: 'Connection Failed',
+          message: `Connection failed: ${err.message}`,
+          agentIcon: '⚠️',
+        })
       }
     } finally {
       setConnecting(false)
     }
-  }, [addToast, pollBalance, refreshTasks])
+  }, [addNotification, pollBalance, refreshTasks])
 
   // ── Disconnect (local state only) ──────────────────────────────────────────
   const disconnectWallet = useCallback(() => {
@@ -580,10 +628,10 @@ export default function App() {
       clearInterval(balanceIntervalRef.current)
       balanceIntervalRef.current = null
     }
-    addToast({ type: 'info', message: 'Wallet disconnected.' })
-  }, [addToast])
+    addNotification({ type: 'info', title: 'Disconnected', message: 'Wallet disconnected.', agentIcon: '👋' })
+  }, [addNotification])
 
-  // ── Connect using dev wallet (pick from Hardhat accounts directly) ─────────
+  // ── Connect using dev wallet ───────────────────────────────────────────────
   const connectDevWallet = useCallback(async (index) => {
     try {
       setConnecting(true)
@@ -603,73 +651,79 @@ export default function App() {
       })
       setWalletSource('dev')
 
-      addToast({
+      addNotification({
         type: 'success',
-        message: `Dev Account #${index} connected: ${address.slice(0, 10)}...`,
+        title: 'Dev Wallet Connected',
+        message: `Dev Account #${index} connected: ${shortenAddress(address)}`,
+        agentIcon: '✅',
       })
 
       await refreshTasks()
     } catch (err) {
-      addToast({ type: 'error', message: `Dev wallet connect failed: ${err.message}` })
+      addNotification({
+        type: 'error',
+        title: 'Dev Wallet Failed',
+        message: `Dev wallet connect failed: ${err.message}`,
+        agentIcon: '⚠️',
+      })
     } finally {
       setConnecting(false)
     }
-  }, [addToast, refreshTasks])
+  }, [addNotification, refreshTasks])
 
-  // ── Revoke MetaMask site permission (fresh re-connect next time) ──────────
+  // ── Revoke MetaMask site permission ────────────────────────────────────────
   const revokeConnection = useCallback(async () => {
     try {
       const detected = await detectProvider()
       if (detected?.provider) {
         try {
-          // EIP-7715 / MetaMask revoke
           await detected.provider.request({
             method: 'wallet_revokePermissions',
             params: [{ eth_accounts: {} }],
           })
         } catch {
-          // Fallback: some wallets don't support revoke — just disconnect
+          // Fallback: some wallets don't support revoke
         }
       }
     } catch {
       // ignore
     }
-    // Always clear local state
     disconnectWallet()
-    addToast({
+    addNotification({
       type: 'success',
+      title: 'Permissions Revoked',
       message: 'MetaMask connection revoked. Next Connect will show the account picker.',
+      agentIcon: '🔓',
     })
-  }, [disconnectWallet, addToast])
+  }, [disconnectWallet, addNotification])
 
   // ── Switch MetaMask Account ────────────────────────────────────────────────
   const handleSwitchAccount = useCallback(async () => {
     setTxLog([])
     await revokeConnection()
-    addToast({
+    addNotification({
       type: 'success',
-      message:
-        'Site permissions revoked. Click "Connect Wallet" and select your imported Hardhat account from the picker.',
+      title: 'Account Switch Initiated',
+      message: 'Site permissions revoked. Click "Connect Wallet" and select your imported Hardhat account from the picker.',
+      agentIcon: '🔁',
     })
-  }, [revokeConnection, addToast])
+  }, [revokeConnection, addNotification])
 
-  // ── Request network switch to Hardhat Localhost ────────────────────────────
+  // ── Request network switch ─────────────────────────────────────────────────
   const switchNetwork = useCallback(async () => {
     try {
       const detected = await detectProvider()
       if (!detected) {
-        addToast({ type: 'error', message: 'No wallet found to switch network.' })
+        addNotification({ type: 'error', title: 'No Wallet Found', message: 'No wallet found to switch network.', agentIcon: '⚠️' })
         return
       }
       const provider = detected.provider
-      // Try switching first
       try {
         await provider.request({
           method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x7a69' }], // 31337 in hex
+          params: [{ chainId: '0x7a69' }],
         })
       } catch (switchError) {
-        // Chain not added — add it
         if (switchError.code === 4902) {
           await provider.request({
             method: 'wallet_addEthereumChain',
@@ -690,21 +744,21 @@ export default function App() {
           throw switchError
         }
       }
-      addToast({ type: 'success', message: 'Switched to Hardhat Localhost.' })
+      addNotification({ type: 'success', title: 'Network Switched', message: 'Switched to Hardhat Localhost.', agentIcon: '🔗' })
     } catch (err) {
       if (err.code === 4001) {
-        addToast({ type: 'error', message: 'Network switch rejected.' })
+        addNotification({ type: 'error', title: 'Switch Rejected', message: 'Network switch rejected.', agentIcon: '⚠️' })
       } else {
-        addToast({ type: 'error', message: `Switch failed: ${err.message}` })
+        addNotification({ type: 'error', title: 'Switch Failed', message: `Switch failed: ${err.message}`, agentIcon: '⚠️' })
       }
     }
-  }, [addToast])
+  }, [addNotification])
 
-  // ── Post a single task with value (used by TaskCreationModal) ───────────
+  // ── Post a single task with value ─────────────────────────────────────────
   const handlePostTask = useCallback(
     async (goal, metadataURI) => {
       if (!contractRef.current) {
-        addToast({ type: 'error', message: 'Wallet not connected.' })
+        addNotification({ type: 'error', title: 'Wallet Not Connected', message: 'Wallet not connected.', agentIcon: '⚠️' })
         return
       }
       addTxLog('Mission Control: Post Task', 'pending', null, 'Confirm in MetaMask...')
@@ -712,67 +766,131 @@ export default function App() {
       try {
         const tx = await contractRef.current.postTask(metadataURI, { value })
         addTxLog('Mission Control: Post Task', 'pending', tx.hash, `Mining... ${tx.hash.slice(0, 10)}...`)
-        addToast({ type: 'info', message: `Posting task... tx: ${tx.hash.slice(0, 10)}...` })
+        addNotification({ type: 'info', title: 'Posting Task', message: `Posting task... tx: ${tx.hash.slice(0, 10)}...`, agentIcon: '🚀' })
         await tx.wait()
         addTxLog('Mission Control: Post Task', 'success', tx.hash, 'Task posted: 0.05 ETH locked in escrow.')
-        addToast({ type: 'success', message: 'Task posted: 0.05 ETH locked in escrow.' })
+        addNotification({ type: 'success', title: 'Task Posted', message: 'Task posted: 0.05 ETH locked in escrow.', agentIcon: '✅' })
       } catch (err) {
         if (err.code === 4001 || err.reason === 'ACTION_REJECTED') {
           addTxLog('Mission Control: Post Task', 'error', null, 'Transaction rejected by user.')
-          addToast({ type: 'error', message: 'Transaction rejected by user.' })
+          addNotification({ type: 'error', title: 'Transaction Rejected', message: 'Transaction rejected by user.', agentIcon: '⚠️' })
         } else {
           const reason = err.reason || err.message || 'Unknown error'
           addTxLog('Mission Control: Post Task', 'error', null, reason)
-          addToast({ type: 'error', message: `Failed: ${reason}` })
+          addNotification({ type: 'error', title: 'Transaction Failed', message: `Failed: ${reason}`, agentIcon: '⚠️' })
         }
       }
     },
-    [addToast, addTxLog]
+    [addNotification, addTxLog]
   )
 
-  // ── Submit prompt → post one task ─────────────────────────────────────────
+  // ── Submit prompt → decompose → confirm → post ────────────────────────────
   const handleSubmitPrompt = useCallback(
-    async (prompt) => {
+    async (promptText) => {
       if (!contractRef.current) {
-        addToast({ type: 'error', message: 'Wallet not connected.' })
+        addNotification({ type: 'error', title: 'Wallet Not Connected', message: 'Please connect your wallet first.', agentIcon: '⚠️', persistent: true })
         return
       }
       setIsLoading(true)
-      setDeploymentStep('Preparing transaction...')
-
-      const metadataURI = `ipfs://task-meta/${btoa(prompt).slice(0, 40)}`
-      const value = ethers.parseEther('0.05')
+      setDeploymentStartTime(Date.now())
+      setDeploymentStep('🧠 AI decomposing goal...')
 
       try {
-        setDeploymentStep('Waiting for MetaMask confirmation...')
-        addTxLog('Deploy: Prepare', 'pending', null, 'Transaction prepared, awaiting MetaMask confirmation...')
-
-        const tx = await contractRef.current.postTask(metadataURI, { value })
-        addTxLog('Deploy: Submit to Chain', 'pending', tx.hash, `Mining on-chain... ${tx.hash.slice(0, 10)}...`)
-        setDeploymentStep('Mining transaction on-chain...')
-        addToast({ type: 'info', message: `Posting task... tx: ${tx.hash.slice(0, 10)}...` })
-
-        await tx.wait()
-        addTxLog('Deploy: Confirm', 'success', tx.hash, 'Task deployed: 0.05 ETH locked in escrow. Swarm agents can now claim it.')
-        addToast({ type: 'success', message: `Goal deployed: 0.05 ETH locked in escrow.` })
-        setDeploymentStep(null)
-        await refreshTasks()
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 45000)
+        const response = await fetch('http://127.0.0.1:8000/api/decompose', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ goal: promptText }),
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+        if (!response.ok) throw new Error(`Decomposition failed: ${response.status}`)
+        const data = await response.json()
+        const tasksList = data.tasks || []
+        setDecomposedTasks(tasksList)
+        setShowConfirmModal(true)
+        addNotification({
+          type: 'success',
+          title: 'AI Decomposition Complete',
+          message: `Found ${tasksList.length} subtask${tasksList.length !== 1 ? 's' : ''}`,
+          agentIcon: '🧠',
+        })
       } catch (err) {
-        if (err.code === 4001 || err.reason === 'ACTION_REJECTED') {
-          addTxLog('Deploy: Submit', 'error', null, 'Transaction rejected by user in MetaMask.')
-          addToast({ type: 'error', message: 'Transaction rejected by user.' })
-        } else {
-          const reason = err.reason || err.message || 'Unknown error'
-          addTxLog('Deploy: Submit', 'error', null, reason)
-          addToast({ type: 'error', message: `Failed to deploy: ${reason}` })
-        }
-        setDeploymentStep(null)
+        const isTimeout = err.name === 'AbortError'
+        addNotification({
+          type: 'error',
+          title: isTimeout ? 'Decomposition Timed Out' : 'Decomposition Failed',
+          message: isTimeout
+            ? 'NVIDIA AI took too long. Falling back to single-task mode.'
+            : err.message,
+          agentIcon: '⚠️',
+          persistent: true,
+        })
+        // Fallback: create 1 task with the raw goal text
+        setDecomposedTasks([{ id: 0, description: promptText, bounty_eth: 0.05 }])
+        setShowConfirmModal(true)
       } finally {
         setIsLoading(false)
       }
     },
-    [addToast, addTxLog, refreshTasks]
+    [addNotification]
   )
+
+  // ── Confirm deployment of decomposed tasks ────────────────────────────────
+  const handleConfirmDeploy = useCallback(async () => {
+    if (!contractRef.current || decomposedTasks.length === 0) return
+    setShowConfirmModal(false)
+    setIsLoading(true)
+    setDeploymentStartTime(Date.now())
+
+    for (let i = 0; i < decomposedTasks.length; i++) {
+      const task = decomposedTasks[i]
+      setDeploymentStep(`Posting task ${i + 1}/${decomposedTasks.length}: ${task.description}`)
+      addNotification({
+        type: 'info',
+        agentIcon: '🚀',
+        title: `Posting Task ${i + 1}/${decomposedTasks.length}`,
+        message: task.description,
+      })
+
+      const metadataURI = `ipfs://task-meta/${btoa(task.description)}`
+      const bountyWei = ethers.parseEther(String(task.bounty_eth || 0.05))
+
+      try {
+        addTxLog(`Deploy Task ${i + 1}`, 'pending', null, 'Confirm in MetaMask...')
+        const tx = await contractRef.current.postTask(metadataURI, { value: bountyWei })
+        addTxLog(`Deploy Task ${i + 1}`, 'pending', tx.hash, `Mining... ${tx.hash.slice(0, 10)}...`)
+        await tx.wait()
+        addTxLog(`Deploy Task ${i + 1}`, 'success', tx.hash, `Task posted: ${formatEth(bountyWei)} ETH locked.`)
+      } catch (err) {
+        const reason = err.reason || err.message || 'Unknown error'
+        addTxLog(`Deploy Task ${i + 1}`, 'error', null, reason)
+        addNotification({
+          type: 'error',
+          title: `Task ${i + 1} Failed`,
+          message: reason,
+          agentIcon: '⚠️',
+        })
+      }
+    }
+
+    addNotification({
+      type: 'success',
+      title: 'All Tasks Deployed!',
+      message: `${decomposedTasks.length} tasks posted to escrow`,
+      agentIcon: '🚀',
+    })
+    await refreshTasks()
+    setIsLoading(false)
+    setDeploymentStep('')
+  }, [decomposedTasks, addNotification, addTxLog, refreshTasks])
+
+  // ── Cancel deployment ─────────────────────────────────────────────────────
+  const handleCancelDeploy = useCallback(() => {
+    setShowConfirmModal(false)
+    setDecomposedTasks([])
+  }, [])
 
   // ── Claim a task ──────────────────────────────────────────────────────────
   const handleClaimTask = useCallback(
@@ -783,20 +901,45 @@ export default function App() {
       try {
         const tx = await contractRef.current.claimTask(taskId)
         addTxLog(`Claim: Task #${taskId}`, 'pending', tx.hash, `Mining... ${tx.hash.slice(0, 10)}...`)
-        addToast({ type: 'info', message: `Claiming task #${taskId}...` })
+        addNotification({ type: 'info', title: 'Claiming Task', message: `Claiming task #${taskId}...`, agentIcon: '🐝' })
         await tx.wait()
         addTxLog(`Claim: Task #${taskId}`, 'success', tx.hash, `Task #${taskId} claimed successfully.`)
-        addToast({ type: 'success', message: `Task #${taskId} claimed.` })
+        addNotification({ type: 'success', title: 'Task Claimed', message: `Task #${taskId} claimed.`, agentIcon: '🐝' })
         await refreshTasks()
       } catch (err) {
         const reason = err.reason || err.message || 'Unknown error'
         addTxLog(`Claim: Task #${taskId}`, 'error', null, reason)
-        addToast({ type: 'error', message: `claimTask failed: ${reason}` })
+        addNotification({ type: 'error', title: 'Claim Failed', message: `claimTask failed: ${reason}`, agentIcon: '⚠️' })
       } finally {
         setIsLoading(false)
       }
     },
-    [addToast, addTxLog, refreshTasks]
+    [addNotification, addTxLog, refreshTasks]
+  )
+
+  // ── Submit result ─────────────────────────────────────────────────────────
+  const handleSubmitResult = useCallback(
+    async (taskId, resultURI) => {
+      if (!contractRef.current) return
+      setIsLoading(true)
+      addTxLog(`Submit: Task #${taskId}`, 'pending', null, 'Confirm in MetaMask...')
+      try {
+        const tx = await contractRef.current.submitResult(taskId, resultURI)
+        addTxLog(`Submit: Task #${taskId}`, 'pending', tx.hash, `Mining... ${tx.hash.slice(0, 10)}...`)
+        addNotification({ type: 'info', title: 'Submitting Result', message: `Task #${taskId} result submission in progress...`, agentIcon: '🐝' })
+        await tx.wait()
+        addTxLog(`Submit: Task #${taskId}`, 'success', tx.hash, `Result submitted for task #${taskId}.`)
+        addNotification({ type: 'success', title: 'Result Submitted', message: `Task #${taskId} result submitted successfully.`, agentIcon: '🐝' })
+        await refreshTasks()
+      } catch (err) {
+        const reason = err.reason || err.message || 'Unknown error'
+        addTxLog(`Submit: Task #${taskId}`, 'error', null, reason)
+        addNotification({ type: 'error', title: 'Submission Failed', message: reason, agentIcon: '⚠️' })
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [addNotification, addTxLog, refreshTasks]
   )
 
   // ── Approve and pay a task ────────────────────────────────────────────────
@@ -808,20 +951,20 @@ export default function App() {
       try {
         const tx = await contractRef.current.approveAndPay(taskId)
         addTxLog(`Approve: Task #${taskId}`, 'pending', tx.hash, `Mining... ${tx.hash.slice(0, 10)}...`)
-        addToast({ type: 'info', message: `Approving task #${taskId}...` })
+        addNotification({ type: 'info', title: 'Approving Task', message: `Approving task #${taskId}...`, agentIcon: '🧠' })
         await tx.wait()
-        addTxLog(`Approve: Task #${taskId}`, 'success', tx.hash, `Task #${taskId} approved — 0.05 ETH released to agent.`)
-        addToast({ type: 'success', message: `Task #${taskId} approved — reward released.` })
+        addTxLog(`Approve: Task #${taskId}`, 'success', tx.hash, `Task #${taskId} approved — ${formatEth(await contractRef.current.tasks(taskId).then(t => t.reward))} ETH released to agent.`)
+        addNotification({ type: 'success', title: 'Task Approved', message: `Task #${taskId} approved — reward released.`, agentIcon: '🧠' })
         await refreshTasks()
       } catch (err) {
         const reason = err.reason || err.message || 'Unknown error'
         addTxLog(`Approve: Task #${taskId}`, 'error', null, reason)
-        addToast({ type: 'error', message: `approveAndPay failed: ${reason}` })
+        addNotification({ type: 'error', title: 'Approval Failed', message: `approveAndPay failed: ${reason}`, agentIcon: '⚠️' })
       } finally {
         setIsLoading(false)
       }
     },
-    [addToast, addTxLog, refreshTasks]
+    [addNotification, addTxLog, refreshTasks]
   )
 
   // ── Raise dispute ─────────────────────────────────────────────────────────
@@ -833,25 +976,23 @@ export default function App() {
       try {
         const tx = await contractRef.current.raiseDispute(taskId)
         addTxLog(`Dispute: Task #${taskId}`, 'pending', tx.hash, `Mining... ${tx.hash.slice(0, 10)}...`)
-        addToast({ type: 'info', message: `Raising dispute on task #${taskId}...` })
+        addNotification({ type: 'info', title: 'Raising Dispute', message: `Raising dispute on task #${taskId}...`, agentIcon: '⚠️' })
         await tx.wait()
         addTxLog(`Dispute: Task #${taskId}`, 'success', tx.hash, `Dispute raised on task #${taskId}. Manager will adjudicate.`)
-        addToast({ type: 'success', message: `Dispute raised on task #${taskId}.` })
+        addNotification({ type: 'success', title: 'Dispute Raised', message: `Dispute raised on task #${taskId}.`, agentIcon: '⚠️' })
         await refreshTasks()
       } catch (err) {
         const reason = err.reason || err.message || 'Unknown error'
         addTxLog(`Dispute: Task #${taskId}`, 'error', null, reason)
-        addToast({ type: 'error', message: `raiseDispute failed: ${reason}` })
+        addNotification({ type: 'error', title: 'Dispute Failed', message: `raiseDispute failed: ${reason}`, agentIcon: '⚠️' })
       } finally {
         setIsLoading(false)
       }
     },
-    [addToast, addTxLog, refreshTasks]
+    [addNotification, addTxLog, refreshTasks]
   )
 
   // ── Listen for account / chain changes ────────────────────────────────────
-  // Attach ONCE on mount to avoid stacking duplicate listeners.
-  // Handlers must sit at top-level of effect so cleanup references match.
   useEffect(() => {
     let providerApi = null
     let onAccountsChanged = null
@@ -864,7 +1005,6 @@ export default function App() {
 
       onAccountsChanged = (accounts) => {
         if (accounts.length === 0) {
-          // Graceful disconnect — do NOT call disconnectWallet (unstable ref)
           setWallet({ address: null, balance: '0', chainId: null })
           signerRef.current = null
           contractRef.current = null
@@ -873,7 +1013,6 @@ export default function App() {
             balanceIntervalRef.current = null
           }
         } else {
-          // MetaMask docs recommend full reload on account change
           window.location.reload()
         }
       }
@@ -944,13 +1083,13 @@ export default function App() {
         </div>
       )}
 
-      {/* Zero Balance Warning (Hardhat but no ETH) */}
+      {/* Zero Balance Warning */}
       {wallet.address && wallet.chainId === 31337 && parseFloat(wallet.balance) === 0 && (
         <div className="bg-yellow-500/10 border-y border-yellow-500/20 py-3 px-6">
           <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
             <p className="text-sm text-yellow-400">
-              Warning: Connected account <strong>{wallet.address.slice(0, 8)}...</strong> has <strong>0 GO-ETH</strong>.
-              Scroll to <strong>"Hardhat Dev Accounts"</strong> below, copy Account #0's private key,
+              Warning: Connected account <strong>{shortenAddress(wallet.address)}</strong> has <strong>0 GO-ETH</strong>.
+              Scroll to <strong>&quot;Hardhat Dev Accounts&quot;</strong> below, copy Account #0&apos;s private key,
               and import it into MetaMask (Account icon → Import Account).
             </p>
             <button
@@ -965,52 +1104,67 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-6 py-8 flex flex-col gap-8 relative z-10">
-        {/* Hero Title with Typing Animation */}
+        {/* Hero Title */}
         <div data-animate>
           <HeroTitle />
         </div>
 
-        {/* Section 1: Swarm Visualizer */}
+        {/* Swarm Visualizer */}
         <div data-animate data-animate-delay="1">
           <SwarmVisualizer tasks={tasks} formatEth={formatEth} STATUS_NAMES={STATUS_NAMES} />
         </div>
 
-        {/* Section 2: Human Command Deck */}
+        {/* Human Command Deck */}
         <HumanCommandDeck
           onSubmitPrompt={handleSubmitPrompt}
           onOpenModal={() => setShowModal(true)}
           isLoading={isLoading}
           wallet={wallet}
-          deploymentStep={deploymentStep}
+          tasks={tasks}
+          deploymentStartTime={deploymentStartTime}
         />
 
-        {/* Section 3: Transaction Activity Log */}
+        {/* Transaction Activity Log */}
         <div data-animate data-animate-delay="3">
           <TxActivityLog transactions={txLog} />
         </div>
 
-        {/* Section 4: The Immutable Swarm Ledger */}
+        {/* Swarm Activity Feed */}
+        <div data-animate data-animate-delay="3">
+          <SwarmActivityFeed tasks={tasks} transactions={txLog} />
+        </div>
+
+        {/* AI Console */}
+        <div data-animate data-animate-delay="3">
+          <AIConsole logs={txLog.map((tx) => ({
+            agent: tx.step?.toLowerCase().includes('manager') ? 'Manager' : 'Worker',
+            action: tx.step,
+            timestamp: tx.timestamp,
+            snippet: tx.message,
+          }))} />
+        </div>
+
+        {/* Active Ledger Grid */}
         <ActiveLedgerGrid
           tasks={tasks}
           wallet={wallet}
           onClaimTask={handleClaimTask}
           onApprove={handleApprove}
           onDispute={handleDispute}
+          onSubmitResult={handleSubmitResult}
           isLoading={isLoading}
-          STATUS_NAMES={STATUS_NAMES}
           STATUS_COLORS={STATUS_COLORS}
           formatEth={formatEth}
         />
 
-        {/* Section 5: Manual Intervention Override */}
+        {/* Manual Intervention Override */}
         <ManualInterventionOverride
           wallet={wallet}
           contract={getContractRef()}
-          addToast={addToast}
           addTxLog={addTxLog}
         />
 
-        {/* Section 6: Hardhat Dev Accounts */}
+        {/* Hardhat Dev Accounts */}
         <div data-animate data-animate-delay="6">
           <HardhatDevAccounts wallet={wallet} onRequestAccountSwitch={handleSwitchAccount} />
         </div>
@@ -1024,7 +1178,18 @@ export default function App() {
         isLoading={isLoading}
       />
 
-      {/* Toast Notifications */}
+      {/* Decompose Confirm Modal */}
+      <DecomposeConfirmModal
+        tasks={decomposedTasks}
+        isOpen={showConfirmModal}
+        onConfirm={handleConfirmDeploy}
+        onCancel={handleCancelDeploy}
+      />
+
+      {/* Advanced Notification Stack */}
+      <AdvancedNotificationSystem />
+
+      {/* Legacy Toast Notifications */}
       <ToastContainer toasts={toasts} removeToast={removeToast} />
     </div>
   )

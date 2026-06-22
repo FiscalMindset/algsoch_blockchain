@@ -55,6 +55,7 @@ HARDHAT_PID=""
 VITE_PID=""
 WORKER_PID=""
 MANAGER_PID=""
+API_PID=""
 
 # -------------------------------------------------------------------
 # Cleanup handler — kills ALL background services on exit
@@ -64,7 +65,7 @@ cleanup() {
   echo "==================================================================="
   echo "  🛑 Shutting down all services..."
   echo "==================================================================="
-  for pid in "$WORKER_PID" "$VITE_PID" "$HARDHAT_PID"; do
+  for pid in "$WORKER_PID" "$VITE_PID" "$HARDHAT_PID" "$API_PID"; do
     if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
       kill "$pid" 2>/dev/null || true
       wait "$pid" 2>/dev/null || true
@@ -75,7 +76,7 @@ cleanup() {
   exit 0
 }
 
-trap cleanup SIGINT SIGTERM EXIT
+trap cleanup SIGINT SIGTERM
 
 # -------------------------------------------------------------------
 # Step 0: Prerequisite checks
@@ -158,13 +159,11 @@ if [[ $? -ne 0 ]]; then
 fi
 
 echo "$DEPLOY_OUTPUT" > "$LOG_DIR/deploy.log"
-CONTRACT_ADDRESS=$(echo "$DEPLOY_OUTPUT" | grep -oP 'AgentSwarmEscrow#AgentSwarmEscrow\s*=\s*\K0x[a-fA-F0-9]+' | head -1)
-if [[ -z "$CONTRACT_ADDRESS" ]]; then
-  CONTRACT_ADDRESS=$(echo "$DEPLOY_OUTPUT" | grep -oP '0x[a-fA-F0-9]{40}' | grep -v '^0x0000' | head -1)
-fi
+CONTRACT_ADDRESS=$(echo "$DEPLOY_OUTPUT" | grep -oE '0x[a-fA-F0-9]+' | grep -v '^0x0000' | head -1)
 if [[ -z "$CONTRACT_ADDRESS" ]]; then
   fail "Could not extract contract address. Check $LOG_DIR/deploy.log"
 fi
+export CONTRACT_ADDRESS
 ok "Contract deployed at $CONTRACT_ADDRESS"
 
 # -------------------------------------------------------------------
@@ -188,20 +187,75 @@ if [[ ! -f .env ]]; then
   cp .env.example .env
 fi
 
-# Update CONTRACT_ADDRESS in .env
-python3 -c "
-import os, re
-addr = os.environ.get('CONTRACT_ADDRESS', '')
-with open('.env', 'r') as f: content = f.read()
-pat = r'^CONTRACT_ADDRESS=.*$'
-repl = f'CONTRACT_ADDRESS={addr}'
-if re.search(pat, content, re.MULTILINE):
-    content = re.sub(pat, repl, content, flags=re.MULTILINE)
+# Update CONTRACT_ADDRESS, NVIDIA_API_KEY, MODEL in .env
+python3 - <<PYEOF
+import os
+
+contract_addr = os.environ.get('CONTRACT_ADDRESS', '')
+root_env_path = os.path.join('$SCRIPT_DIR', '.env')
+backend_env_path = '.env'
+
+# Read root .env for NVIDIA vars (handles lowercase root keys → uppercase backend keys)
+nvidia_key = ''
+model_name = ''
+if os.path.exists(root_env_path):
+    with open(root_env_path) as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith('nvidia_api_key='):
+                nvidia_key = line.split('=', 1)[1].strip()
+            elif line.startswith('model='):
+                model_name = line.split('=', 1)[1].strip()
 else:
-    content += '\\n' + repl + '\\n'
-with open('.env', 'w') as f: f.write(content)
+    print('[WARNING] Root .env not found at', root_env_path)
+
+# Read existing backend .env
+with open(backend_env_path, 'r') as f:
+    content = f.read()
+
+lines = content.split('\n')
+updated = False
+found = {'CONTRACT_ADDRESS': False, 'NVIDIA_API_KEY': False, 'MODEL': False}
+
+for i, line in enumerate(lines):
+    key = line.split('=')[0].strip() if '=' in line else ''
+    if key == 'CONTRACT_ADDRESS':
+        lines[i] = f'CONTRACT_ADDRESS={contract_addr}'
+        found['CONTRACT_ADDRESS'] = True
+        updated = True
+    elif key == 'NVIDIA_API_KEY':
+        if nvidia_key:
+            lines[i] = f'NVIDIA_API_KEY={nvidia_key}'
+            found['NVIDIA_API_KEY'] = True
+            updated = True
+        else:
+            found['NVIDIA_API_KEY'] = True  # already set; warn below
+    elif key == 'MODEL':
+        if model_name:
+            lines[i] = f'MODEL={model_name}'
+            found['MODEL'] = True
+            updated = True
+        else:
+            found['MODEL'] = True
+
+# Append missing keys
+if not found['CONTRACT_ADDRESS'] and contract_addr:
+    lines.append(f'CONTRACT_ADDRESS={contract_addr}')
+    updated = True
+if not found['NVIDIA_API_KEY'] and nvidia_key:
+    lines.append(f'NVIDIA_API_KEY={nvidia_key}')
+    updated = True
+elif not nvidia_key:
+    print('[WARNING] NVIDIA_API_KEY not found in root .env — AI features will use fallback')
+if not found['MODEL'] and model_name:
+    lines.append(f'MODEL={model_name}')
+    updated = True
+
+with open(backend_env_path, 'w') as f:
+    f.write('\n'.join(lines) + '\n')
+
 print('.env updated')
-"
+PYEOF
 ok "Backend configured"
 
 # -------------------------------------------------------------------
@@ -251,6 +305,28 @@ done
 ok "Frontend at http://localhost:5173"
 
 # -------------------------------------------------------------------
+# Step 6: Start AI API server (background)
+# -------------------------------------------------------------------
+echo ""
+echo "-------------------------------------------------------------------"
+info "(6/6) Starting AI API server..."
+cd "$BACKEND_DIR"
+source venv/bin/activate
+
+nohup python3 api_server.py > "$LOG_DIR/api_server.log" 2>&1 &
+API_PID=$!
+echo $API_PID > "$LOG_DIR/api_server.pid"
+ok "AI API server starting (PID $API_PID) — log: logs/api_server.log"
+
+for i in {1..20}; do
+  if curl -s http://127.0.0.1:8000/api/health > /dev/null 2>&1; then
+    ok "AI API server ready at http://127.0.0.1:8000"
+    break
+  fi
+  sleep 0.5
+done
+
+# -------------------------------------------------------------------
 # Summary
 # -------------------------------------------------------------------
 echo ""
@@ -263,6 +339,7 @@ printf "| %-18s | %-35s | %-8s |\n" "Hardhat Node" "http://127.0.0.1:8545" "🟢
 printf "| %-18s | %-35s | %-8s |\n" "Smart Contract" "$CONTRACT_ADDRESS" "🟢"
 printf "| %-18s | %-35s | %-8s |\n" "Frontend" "http://localhost:5173" "🟢"
 printf "| %-18s | %-35s | %-8s |\n" "Worker Swarm" "$WORKERS agents → logs/workers.log" "🟢"
+printf "| %-18s | %-35s | %-8s |\n" "AI API Server" "http://127.0.0.1:8000" "🟢"
 printf "| %-18s | %-35s | %-8s |\n" "Manager Agent" "foreground below 👇" "🟡"
 echo "==================================================================="
 
@@ -290,4 +367,39 @@ fi
 echo ""
 echo "Manager Agent finished. Cleaning up..."
 
-# cleanup will run on script exit via EXIT trap
+# -------------------------------------------------------------------
+# URL Summary + logs/urls.txt
+# -------------------------------------------------------------------
+echo ""
+echo "════════════════════════════════════════════════════════════"
+echo "  🚀 Agent Swarm Escrow is live!"
+echo "════════════════════════════════════════════════════════════"
+echo "    Blockchain RPC:  http://127.0.0.1:8545"
+echo "    Frontend URL:    http://localhost:5173"
+echo "    Contract:        $CONTRACT_ADDRESS"
+echo "════════════════════════════════════════════════════════════"
+echo ""
+
+cat > "$LOG_DIR/urls.txt" <<EOF
+RPC_URL=http://127.0.0.1:8545
+FRONTEND_URL=http://localhost:5173
+CONTRACT_ADDRESS=$CONTRACT_ADDRESS
+EOF
+ok "URLs written to logs/urls.txt"
+
+echo ""
+echo "════════════════════════════════════════════════════════════"
+echo "  🟢 Services are still running!"
+echo "════════════════════════════════════════════════════════════"
+echo "    Frontend:    http://localhost:5173"
+echo "    Blockchain:  http://127.0.0.1:8545"
+echo "    AI API:      http://127.0.0.1:8000"
+echo ""
+echo "  Press Ctrl+C to stop all services."
+echo "════════════════════════════════════════════════════════════"
+echo ""
+
+# Keep script alive so background processes continue running
+while true; do
+  sleep 1
+done
